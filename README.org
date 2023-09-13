@@ -1,0 +1,244 @@
+#+title: LLM Tools
+
+
+* Tools Typedefs
+
+The ChatGPT plugin and API function calling features by OpenAI uses the Typescript typedef to describe a list of availiable tools/plugins for the model.
+
+
+** Function calling
+
+In the [[https://openai.com/blog/function-calling-and-other-api-updates][Function calling]] blog post, OpenAI describes the function calling feature.
+
+Ask the model to repeat the context, you'll find that the functions sent to the API actaully convert to a markdown format with the function type defines, looks like:
+
+#+begin_src markdown
+# Tools
+
+## functions
+
+namespace functions {
+
+// Get the current weather in a given location
+type get_current_weather = (_: {
+// The city and state, e.g. San Francisco, CA
+location: string,
+unit?: "celsius" | "fahrenheit",
+}) => any;
+
+} // namespace functions
+#+end_src
+
+** Direct chat with tools
+
+- ~gpt-3.5-turbo-0613~ example
+#+begin_ai markdown :model gpt-3.5-turbo-0613
+[ME]:
+# Tools
+
+## functions
+
+namespace functions {
+
+// Get the current weather in a given location
+type get_current_weather = (_: {
+// The city and state, e.g. San Francisco, CA
+location: string,
+unit?: "celsius" | "fahrenheit",
+}) => any;
+
+} // namespace functions
+
+
+What is the weather in London? please output in JSON.
+
+
+[AI]: {
+  "namespace": "functions",
+  "name": "get_current_weather",
+  "payload": {
+    "location": "London",
+    "unit": "celsius"
+  }
+}
+
+[ME]:
+#+end_ai
+- ~gpt-3.5-turbo-0613~ with pluing def
+#+begin_ai markdown :model gpt-3.5-turbo-0613
+[ME]: # Tools
+
+## TimeMachine
+
+// TimeMachine is a tool that provides current time data in various formats and timezones. It integrates with ChatGPT to offer users real-time information based on their preferences.
+namespace TimeMachine {
+
+// Get current time in a specific format and timezone
+type get_GetTime = (_: {
+// The format to return the current time in. A custom format string that follows the token-based formatting conventions provided by the Luxon library.
+format?: string,
+// The timezone to return the current time in. If the user not provide a timezone, you should try asking for the user's timezone. Unless the user provides a timezone, you should not pass this param. If the timezone is not provided, follow the further instructions in the response errmsg.
+tz?: string,
+}) => any;
+
+} // namespace TimeMachine
+
+---
+what time in London? output json
+
+
+[AI]: {
+  "format": "HH:mm",
+  "tz": "Europe/London"
+}
+
+[ME]:
+#+end_ai
+- ~gpt-3.5-turbo-0613~ with logseq api def
+#+begin_ai markdown :model gpt-3.5-turbo-0613 :temperature 0.0
+[ME]:
+# Tools
+
+## Logseq
+
+namespace logseq {
+// Create a new page or retrieve an existing one based on the name
+type create_page = (_: {
+  // The name of the page
+  name: string,
+  // Properties to be set for the page
+  properties: {
+    [key: string]: any,
+  },
+  // Optional configurations for page creation
+  opts?: {
+    // Whether to redirect if the page already exists
+    redirect?: boolean,
+    // Whether to create the first block for the page
+    createFirstBlock?: boolean,
+    // The format of the page (e.g., markdown, org-mode, etc.)
+    format?: string,
+    // Whether the page is a journal page
+    journal?: boolean,
+  },
+}) => any;
+
+// Append a block in a page based on the UUID or page name
+type append_block_in_page = (_: {
+  // The UUID or name of the page
+  uuid_or_page_name: string,
+  // The content to be appended in the block
+  content: string,
+  // Optional configurations for appending the block
+  opts?: {
+    // Additional options can be added based on the actual behavior and requirements
+    [key: string]: any,
+  },
+}) => any;
+} // namespace logseq
+
+---
+We're going to use the tools to create a journal page, with content 'some content', format in 'org', please output the functions with its arguments in JSON.
+
+
+[AI]:
+```json
+{
+  "create_page": {
+    "name": "journal",
+    "properties": {},
+    "opts": {
+      "createFirstBlock": true,
+      "format": "org",
+      "journal": true
+    }
+  },
+  "append_block_in_page": {
+    "uuid_or_page_name": "journal",
+    "content": "some content"
+  }
+}
+```
+
+[ME]:
+#+end_ai
+- ~gpt-4-0613~ with logseq api def
+#+begin_ai markdown :model gpt-4-0613 :temperature 0.4
+[ME]:
+# Tools
+
+## Logseq
+
+namespace logseq {
+// Create a new page or retrieve an existing one based on the name
+type create_page = (_: {
+  // The name of the page
+  name: string,
+  // Properties to be set for the page
+  properties: {
+    [key: string]: any,
+  },
+  // Optional configurations for page creation
+  opts?: {
+    // Whether to redirect if the page already exists
+    redirect?: boolean,
+    // Whether to create the first block for the page
+    createFirstBlock?: boolean,
+    // The format of the page (e.g., markdown, org-mode, etc.)
+    format?: string,
+    // Whether the page is a journal page
+    journal?: boolean,
+  },
+}) => any;
+
+// Append a block in a page based on the UUID or page name
+type append_block_in_page = (_: {
+  // The UUID or name of the page
+  uuid_or_page_name: string,
+  // The content to be appended in the block
+  content: string,
+  // Optional configurations for appending the block
+  opts?: {
+    // Additional options can be added based on the actual behavior and requirements
+    [key: string]: any,
+  },
+}) => any;
+} // namespace logseq
+
+---
+We're going to use the tools for logseq api to create a journal page, with content 'some content', format in 'org', please output the functions with its arguments in JSON.
+
+
+
+[AI]: Sure, here is the JSON representation for the functions with their arguments:
+
+To create a journal page:
+
+```json
+{
+  "$kind": "logseq/create_page",
+  "args": {
+    "name": "Journal Page",
+    "properties": {},
+    "opts": {
+      "format": "org",
+      "journal": true
+    }
+  }
+}
+```
+
+To append a block in a page:
+
+```json
+{
+  "$kind": "logseq/append_block_in_page",
+  "args": {
+    "uuid_or_page_name": "Journal Page",
+    "content": "some content"
+  }
+}
+```
+
+[ME]:
+#+end_ai
